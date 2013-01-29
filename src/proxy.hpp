@@ -27,6 +27,14 @@ namespace zmq
         class socket_base_t *frontend_,
         class socket_base_t *backend_,
         class socket_base_t *control_);
+    int full_proxy (
+        class socket_base_t *frontend_,
+        class socket_base_t *backend_,
+        class socket_base_t *capture_,
+        void * frontend_prefix,
+        int frontend_prefix_len,
+        void * backend_prefix,
+        int backend_prefix_len);
 }
 
 #endif

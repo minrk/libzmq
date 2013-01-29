@@ -54,16 +54,64 @@
 // zmq.h must be included *after* poll.h for AIX to build properly
 #include "../include/zmq.h"
 
-
 int zmq::proxy (
     class socket_base_t *frontend_,
     class socket_base_t *backend_,
     class socket_base_t *capture_)
 {
-    msg_t msg;
-    int rc = msg.init ();
+    return zmq::full_proxy(
+        frontend_,
+        backend_,
+        capture_,
+        NULL,
+        0,
+        NULL,
+        0
+    );
+}
+
+int zmq::full_proxy (
+    class socket_base_t *frontend_,
+    class socket_base_t *backend_,
+    class socket_base_t *capture_,
+    void * frontend_prefix,
+    int frontend_prefix_len,
+    void * backend_prefix,
+    int backend_prefix_len)
+{
+    msg_t msg, msg2, backend_prefix_msg, frontend_prefix_msg;
+    int ftype, btype, rc;
+    size_t sz;
+    rc = frontend_->getsockopt(ZMQ_TYPE, &ftype, &sz);
     if (rc != 0)
         return -1;
+    rc = backend_->getsockopt(ZMQ_TYPE, &btype, &sz);
+    if (rc != 0)
+        return -1;
+    
+    bool router_router = (btype == ZMQ_ROUTER && ftype == ZMQ_ROUTER);
+    
+    rc = msg.init ();
+    if (rc != 0)
+        return -1;
+    
+    if (router_router) {
+        rc = msg2.init ();
+        if (rc != 0)
+            return -1;
+    }
+    
+    if (frontend_prefix) {
+        rc = frontend_prefix_msg.init_data(frontend_prefix, frontend_prefix_len, NULL, NULL);
+        if (rc != 0)
+            return -1;
+    }
+    
+    if (backend_prefix) {
+        rc = backend_prefix_msg.init_data(backend_prefix, backend_prefix_len, NULL, NULL);
+        if (rc != 0)
+            return -1;
+    }
 
     //  The algorithm below assumes ratio of requests and replies processed
     //  under full load to be 1:1.
@@ -82,7 +130,60 @@ int zmq::proxy (
 
         //  Process a request
         if (items [0].revents & ZMQ_POLLIN) {
+            if (frontend_prefix && capture_) {
+                // send the frontend prefix message if there is one
+                msg_t ctrl;
+                rc = ctrl.init ();
+                if (unlikely (rc < 0))
+                    return -1;
+                
+                rc = ctrl.copy (frontend_prefix_msg);
+                if (unlikely (rc < 0))
+                    return -1;
+                rc = capture_->send (&ctrl, ZMQ_SNDMORE);
+                if (unlikely (rc < 0))
+                    return -1;
+            }
+            
             while (true) {
+                if (router_router) {
+                    // ROUTER-ROUTER requires swapping IDENTITY prefix order
+                    
+                    rc = frontend_->recv (&msg, 0);
+                    if (unlikely (rc < 0))
+                        return -1;
+                    
+                    rc = frontend_->recv (&msg2, 0);
+                    if (unlikely (rc < 0))
+                        return -1;
+                    
+                    if (capture_) {
+                        msg_t ctrl;
+                        rc = ctrl.init ();
+                        if (unlikely (rc < 0))
+                            return -1;
+                        
+                        rc = ctrl.copy (msg);
+                        if (unlikely (rc < 0))
+                            return -1;
+                        rc = capture_->send (&ctrl, ZMQ_SNDMORE);
+                        if (unlikely (rc < 0))
+                            return -1;
+                        
+                        rc = ctrl.copy (msg2);
+                        if (unlikely (rc < 0))
+                            return -1;
+                        rc = capture_->send (&ctrl, ZMQ_SNDMORE);
+                        if (unlikely (rc < 0))
+                            return -1;
+                    }
+                    rc = backend_->send (&msg2, ZMQ_SNDMORE);
+                    if (unlikely (rc < 0))
+                        return -1;
+                    rc = backend_->send (&msg, ZMQ_SNDMORE);
+                    if (unlikely (rc < 0))
+                        return -1;
+                }
                 rc = frontend_->recv (&msg, 0);
                 if (unlikely (rc < 0))
                     return -1;
@@ -98,6 +199,7 @@ int zmq::proxy (
                     rc = ctrl.init ();
                     if (unlikely (rc < 0))
                         return -1;
+                    
                     rc = ctrl.copy (msg);
                     if (unlikely (rc < 0))
                         return -1;
@@ -114,7 +216,60 @@ int zmq::proxy (
         }
         //  Process a reply
         if (items [1].revents & ZMQ_POLLIN) {
+            if (backend_prefix && capture_) {
+                // send the backend prefix message if there is one
+                msg_t ctrl;
+                rc = ctrl.init ();
+                if (unlikely (rc < 0))
+                    return -1;
+                
+                rc = ctrl.copy (backend_prefix_msg);
+                if (unlikely (rc < 0))
+                    return -1;
+                rc = capture_->send (&ctrl, ZMQ_SNDMORE);
+                if (unlikely (rc < 0))
+                    return -1;
+            }
+            
             while (true) {
+                if (router_router) {
+                    // ROUTER-ROUTER requires swapping IDENTITY prefix order
+                    
+                    rc = backend_->recv (&msg, 0);
+                    if (unlikely (rc < 0))
+                        return -1;
+                    
+                    rc = backend_->recv (&msg2, 0);
+                    if (unlikely (rc < 0))
+                        return -1;
+                    
+                    if (capture_) {
+                        msg_t ctrl;
+                        rc = ctrl.init ();
+                        if (unlikely (rc < 0))
+                            return -1;
+                        
+                        rc = ctrl.copy (msg);
+                        if (unlikely (rc < 0))
+                            return -1;
+                        rc = capture_->send (&ctrl, ZMQ_SNDMORE);
+                        if (unlikely (rc < 0))
+                            return -1;
+                        
+                        rc = ctrl.copy (msg2);
+                        if (unlikely (rc < 0))
+                            return -1;
+                        rc = capture_->send (&ctrl, ZMQ_SNDMORE);
+                        if (unlikely (rc < 0))
+                            return -1;
+                    }
+                    rc = frontend_->send (&msg2, ZMQ_SNDMORE);
+                    if (unlikely (rc < 0))
+                        return -1;
+                    rc = frontend_->send (&msg, ZMQ_SNDMORE);
+                    if (unlikely (rc < 0))
+                        return -1;
+                }
                 rc = backend_->recv (&msg, 0);
                 if (unlikely (rc < 0))
                     return -1;
