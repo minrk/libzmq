@@ -587,7 +587,10 @@ check_PROGRAMS = ${test_apps}
 
 #  Run the test cases
 TESTS = $(test_apps)
-XFAIL_TESTS =
+XFAIL_TESTS = \
+    tests/test_security_curve \
+    tests/test_security_null \
+    tests/test_security_plain
 
 if !ON_LINUX
 XFAIL_TESTS += tests/test_abstract_ipc
