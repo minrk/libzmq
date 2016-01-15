@@ -29,3 +29,5 @@ matrix:
   exclude:
     - os: osx
       env: BUILD_TYPE=dist
+  allow_failures:
+    - os: osx
