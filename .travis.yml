@@ -2,14 +2,19 @@
 
 language: c
 
+addons:
+  apt:
+    packages:
+      - asciidoc
+      - xmlto
 os:
 - linux
-- osx
+# - osx
 
 env:
-- BUILD_TYPE=default
+# - BUILD_TYPE=default
 - BUILD_TYPE=dist
-- BUILD_TYPE=android
+# - BUILD_TYPE=android
 
 sudo: false
 

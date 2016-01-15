@@ -1,4 +1,9 @@
 #!/bin/sh
+set -x
+
+cd ../..
+
+sh autogen.sh
 ./configure --without-libsodium
 
-make dist
+make -j dist
