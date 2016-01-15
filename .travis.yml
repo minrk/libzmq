@@ -8,6 +8,7 @@ os:
 
 env:
 - BUILD_TYPE=default
+- BUILD_TYPE=dist
 - BUILD_TYPE=android
 
 sudo: false
@@ -23,3 +24,8 @@ before_script:
 
 # Build and check this project according to the BUILD_TYPE
 script: ./ci_build.sh
+
+matrix:
+  exclude:
+    - os: osx
+      env: BUILD_TYPE=dist
