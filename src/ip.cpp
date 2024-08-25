@@ -6,6 +6,7 @@
 #include "macros.hpp"
 #include "config.hpp"
 #include "address.hpp"
+#include <iostream>
 
 #if !defined ZMQ_HAVE_WINDOWS
 #include <fcntl.h>
