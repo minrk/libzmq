@@ -576,12 +576,15 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     if (rc != 0) {
         goto error_closelistener;
     }
+    std::cout << "addr.filename" << filename.c_str() << std::endl;
+    std::cout << "addr" << address.addr() << std::endl;
 
     //  Bind the socket to the file path.
     rc = bind (listener, const_cast<sockaddr *> (address.addr ()),
                address.addrlen ());
     if (rc != 0) {
         errno = wsa_error_to_errno (WSAGetLastError ());
+        printf("bind failed %d\n", errno);
         goto error_closelistener;
     }
     // if we got here, ipc should be working,
@@ -884,7 +887,6 @@ int zmq::create_ipc_wildcard_address (std::string &path_, std::string &file_)
 
     {
         const errno_t rc = _wtmpnam_s (buffer);
-        printf("_wtmpnam_s error, %d\n", rc);
         errno_assert (rc == 0);
     }
     printf("wtmpnam: %ls\n", buffer);
@@ -896,6 +898,7 @@ int zmq::create_ipc_wildcard_address (std::string &path_, std::string &file_)
         perror("wmkdir");
         return -1;
     }
+    printf("wmkdir %ls\n", buffer);
 
     char *tmp = widechar_to_utf8 (buffer);
     if (tmp == 0) {
@@ -905,7 +908,10 @@ int zmq::create_ipc_wildcard_address (std::string &path_, std::string &file_)
     }
 
     path_.assign (tmp);
+    std::cout << "path" << path_ << std::endl;
     file_ = path_ + "/socket";
+    std::cout << "file" << file_ << std::endl;
+
 
     free (tmp);
 #else
