@@ -884,17 +884,23 @@ int zmq::create_ipc_wildcard_address (std::string &path_, std::string &file_)
 
     {
         const errno_t rc = _wtmpnam_s (buffer);
+        printf("_wtmpnam_s error, %d\n", rc);
         errno_assert (rc == 0);
     }
+    printf("wtmpnam: %ls\n", buffer);
 
     // TODO or use CreateDirectoryA and specify permissions?
     const int rc = _wmkdir (buffer);
     if (rc != 0) {
+        printf("wmkdir error, %d\n", rc);
+        perror("wmkdir");
         return -1;
     }
 
     char *tmp = widechar_to_utf8 (buffer);
     if (tmp == 0) {
+        printf("utf8 error\n");
+        perror("utf8:");
         return -1;
     }
 
