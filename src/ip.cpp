@@ -553,6 +553,7 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     socklen_t lcladdr_len = sizeof lcladdr;
     int rc = 0;
     int saved_errno = 0;
+    std::string addr_string;
 
     // It appears that a lack of runtime AF_UNIX support
     // can fail in more than one way.
@@ -577,8 +578,9 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     if (rc != 0) {
         goto error_closelistener;
     }
-    std::cout << "addr.filename" << filename.c_str() << std::endl;
-    std::cout << "addr" << address.addr() << std::endl;
+    std::cout << "addr.filename=" << filename.c_str() << std::endl;
+    address.to_string(addr_string);
+    std::cout << "addr=" << addr_string << std::endl;
 
     //  Bind the socket to the file path.
     rc = bind (listener, const_cast<sockaddr *> (address.addr ()),
@@ -602,6 +604,7 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     rc = getsockname (listener, reinterpret_cast<struct sockaddr *> (&lcladdr),
                       &lcladdr_len);
     wsa_assert (rc != -1);
+    std::cout << "getsockname rc=" << rc << std::endl;
 
     //  Create the client socket.
     *w_ = open_socket (AF_UNIX, SOCK_STREAM, 0);
@@ -609,6 +612,8 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
         errno = wsa_error_to_errno (WSAGetLastError ());
         goto error_closelistener;
     }
+    std::cout << "w_=" << *w_ << std::endl;
+
 
     //  Connect to the remote peer.
     rc = ::connect (*w_, reinterpret_cast<const struct sockaddr *> (&lcladdr),
@@ -619,6 +624,7 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
 
     *r_ = accept (listener, NULL, NULL);
     errno_assert (*r_ != -1);
+    std::cout << "rc=" << rc << " r_=" << *r_ << std::endl;
 
     //  Close the listener socket, we don't need it anymore.
     rc = closesocket (listener);
@@ -626,8 +632,10 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
 
     //  Cleanup temporary socket file descriptor
     if (!filename.empty ()) {
+        std::cout << "unlinking " << filename << std::endl;
         rc = ::unlink (filename.c_str ());
         if ((rc == 0) && !dirname.empty ()) {
+            std::cout << "rmdir " << dirname << std::endl;
             rc = ::rmdir (dirname.c_str ());
             dirname.clear ();
         }
