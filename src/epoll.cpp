@@ -9,7 +9,6 @@
 #endif
 
 #include <stdlib.h>
-#include <iostream>
 #include <string.h>
 #include <signal.h>
 #include <algorithm>
@@ -69,8 +68,6 @@ zmq::epoll_t::handle_t zmq::epoll_t::add_fd (fd_t fd_, i_poll_events *events_)
     pe->ev.events = 0;
     pe->ev.data.ptr = pe;
     pe->events = events_;
-
-    std::cout << "epoll add " << _epoll_fd << std::endl;
 
     const int rc = epoll_ctl (_epoll_fd, EPOLL_CTL_ADD, fd_, &pe->ev);
     errno_assert (rc != -1);
