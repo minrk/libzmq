@@ -619,6 +619,7 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     rc = ::connect (*w_, reinterpret_cast<const struct sockaddr *> (&lcladdr),
                     lcladdr_len);
     if (rc == -1) {
+        errno = wsa_error_to_errno (WSAGetLastError ());
         goto error_closeclient;
     }
 
