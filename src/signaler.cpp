@@ -3,6 +3,7 @@
 #include "precompiled.hpp"
 #include "poller.hpp"
 #include "polling_util.hpp"
+#include <iostream>
 
 #if defined ZMQ_POLL_BASED_ON_POLL
 #if !defined ZMQ_HAVE_WINDOWS && !defined ZMQ_HAVE_AIX
@@ -91,10 +92,10 @@ static int close_wait_ms (int fd_, unsigned int max_ms_ = 2000)
 zmq::signaler_t::signaler_t ()
 {
     //  Create the socketpair for signaling.
-    if (make_fdpair (&_r, &_w) == 0) {
-        unblock_socket (_w);
-        unblock_socket (_r);
-    }
+    int rc = make_fdpair (&_r, &_w);
+    errno_assert(rc==0);
+    unblock_socket (_w);
+    unblock_socket (_r);
 #ifdef HAVE_FORK
     pid = getpid ();
 #endif
@@ -158,6 +159,7 @@ void zmq::signaler_t::send ()
 #elif defined ZMQ_HAVE_WINDOWS
     const char dummy = 0;
     int nbytes;
+    zmq_assert (valid ());
     do {
         nbytes = ::send (_w, &dummy, sizeof (dummy), 0);
         wsa_assert (nbytes != SOCKET_ERROR);
@@ -373,6 +375,7 @@ int zmq::signaler_t::recv_failable ()
 
 bool zmq::signaler_t::valid () const
 {
+    std::cout << "check valid " << (_w != retired_fd) << (_r != retired_fd) << std::endl;
     return _w != retired_fd;
 }
 
