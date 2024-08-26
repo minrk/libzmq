@@ -611,6 +611,10 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     wsa_assert (rc == 0);
     std::cout << "getsockname un=" << lcladdr.sun_path << " len=" << lcladdr_len << std::endl;
 
+    // if we got here, ipc should be working,
+    // so raise any remaining errors
+    ipc_fallback_on_tcpip = false;
+
     //  Create the client socket.
     *w_ = open_socket (AF_UNIX, SOCK_STREAM, 0);
     if (*w_ == INVALID_SOCKET) {
@@ -629,9 +633,6 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
         std::cout << "connect failed: " << errstr << std::endl;
         goto error_closeclient;
     }
-    // if we got here, ipc should be working,
-    // so raise any remaining errors
-    ipc_fallback_on_tcpip = false;
 
     *r_ = accept (listener, NULL, NULL);
     wsa_assert (*r_ != INVALID_SOCKET);
