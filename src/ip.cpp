@@ -604,7 +604,7 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     rc = getsockname (listener, reinterpret_cast<struct sockaddr *> (&lcladdr),
                       &lcladdr_len);
     wsa_assert (rc == 0);
-    std::cout << "getsockname rc=" << rc << "un" << lcladdr.sun_path << std::endl;
+    std::cout << "getsockname un=" << lcladdr.sun_path << std::endl;
 
     //  Create the client socket.
     *w_ = open_socket (AF_UNIX, SOCK_STREAM, 0);
@@ -619,8 +619,8 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     rc = ::connect (*w_, reinterpret_cast<const struct sockaddr *> (&lcladdr),
                     lcladdr_len);
     if (rc == -1) {
-        std::cout << "connect failed";
-        wsa_assert(rc==-1);
+        std::cout << "connect failed" << std::endl;
+        win_assert(rc==0);
         errno = wsa_error_to_errno (WSAGetLastError ());
         goto error_closeclient;
     }
@@ -651,6 +651,7 @@ error_closeclient:
     std::cout << "error_closeclient " << errno << std::endl;
     saved_errno = errno;
     rc = closesocket (*w_);
+    *w_ = retired_fd;
     wsa_assert (rc == 0);
     errno = saved_errno;
 
