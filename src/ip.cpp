@@ -645,20 +645,24 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     return 0;
 
 error_closeclient:
+    std::cout << "error_closeclient " << errno << std::endl;
     saved_errno = errno;
     rc = closesocket (*w_);
     wsa_assert (rc == 0);
     errno = saved_errno;
 
 error_closelistener:
+    std::cout << "error_closelistener " << errno << std::endl;
     saved_errno = errno;
     rc = closesocket (listener);
     wsa_assert (rc == 0);
 
     //  Cleanup temporary socket file descriptor
     if (!filename.empty ()) {
+        std::cout << "(error) unlinking " << filename << std::endl;
         rc = ::unlink (filename.c_str ());
         if ((rc == 0) && !dirname.empty ()) {
+            std::cout << "(error) rmdir " << dirname << std::endl;
             rc = ::rmdir (dirname.c_str ());
             dirname.clear ();
         }
@@ -676,6 +680,7 @@ error_closelistener:
 try_tcpip:
     // try to fallback to TCP/IP
     // TODO: maybe remember this decision permanently?
+    std::cout << "try_tcpip" << std::endl;
 #endif
 
     return make_fdpair_tcpip (r_, w_);
@@ -917,9 +922,9 @@ int zmq::create_ipc_wildcard_address (std::string &path_, std::string &file_)
     }
 
     path_.assign (tmp);
-    std::cout << "path" << path_ << std::endl;
-    file_ = path_ + "/socket";
-    std::cout << "file" << file_ << std::endl;
+    std::cout << "path=" << path_ << std::endl;
+    file_ = path_ + "\\socket";
+    std::cout << "file=" << file_ << std::endl;
 
 
     free (tmp);
