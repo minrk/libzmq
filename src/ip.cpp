@@ -24,6 +24,8 @@
 #include "tcp.hpp"
 #ifdef ZMQ_HAVE_IPC
 #include "ipc_address.hpp"
+// Don't try ipc if it fails once
+static bool try_ipc_first = true;
 #endif
 
 #include <direct.h>
@@ -554,11 +556,17 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     int rc = 0;
     int saved_errno = 0;
     std::string addr_string;
+    char errstr[256];
 
     // It appears that a lack of runtime AF_UNIX support
     // can fail in more than one way.
-    // At least: open_socket can fail or later in bind
+    // At least: open_socket can fail or later in bind or even in connect after bind
     bool ipc_fallback_on_tcpip = true;
+
+    if (!try_ipc_first) {
+        // a past ipc attempt failed, skip straight to try_tcpip in the future;
+        goto try_tcpip;
+    }
 
     //  Create a listening socket.
     const SOCKET listener = open_socket (AF_UNIX, SOCK_STREAM, 0);
@@ -590,9 +598,6 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
         printf("bind failed %d\n", errno);
         goto error_closelistener;
     }
-    // if we got here, ipc should be working,
-    // so raise any remaining errors
-    ipc_fallback_on_tcpip = false;
 
     //  Listen for incoming connections.
     rc = listen (listener, 1);
@@ -604,11 +609,11 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     rc = getsockname (listener, reinterpret_cast<struct sockaddr *> (&lcladdr),
                       &lcladdr_len);
     wsa_assert (rc == 0);
-    std::cout << "getsockname un=" << lcladdr.sun_path << std::endl;
+    std::cout << "getsockname un=" << lcladdr.sun_path << " len=" << lcladdr_len << std::endl;
 
     //  Create the client socket.
     *w_ = open_socket (AF_UNIX, SOCK_STREAM, 0);
-    if (*w_ == -1) {
+    if (*w_ == INVALID_SOCKET) {
         errno = wsa_error_to_errno (WSAGetLastError ());
         goto error_closelistener;
     }
@@ -618,15 +623,18 @@ int zmq::make_fdpair (fd_t *r_, fd_t *w_)
     //  Connect to the remote peer.
     rc = ::connect (*w_, reinterpret_cast<const struct sockaddr *> (&lcladdr),
                     lcladdr_len);
-    if (rc == -1) {
-        std::cout << "connect failed" << std::endl;
-        win_assert(rc==0);
+    if (rc != 0) {
         errno = wsa_error_to_errno (WSAGetLastError ());
+        zmq::win_error (errstr, 256);
+        std::cout << "connect failed: " << errstr << std::endl;
         goto error_closeclient;
     }
+    // if we got here, ipc should be working,
+    // so raise any remaining errors
+    ipc_fallback_on_tcpip = false;
 
     *r_ = accept (listener, NULL, NULL);
-    wsa_assert (*r_ != -1);
+    wsa_assert (*r_ != INVALID_SOCKET);
     std::cout << "rc=" << rc << " r_=" << *r_ << std::endl;
 
     //  Close the listener socket, we don't need it anymore.
@@ -683,10 +691,15 @@ error_closelistener:
 
 try_tcpip:
     // try to fallback to TCP/IP
-    // TODO: maybe remember this decision permanently?
     std::cout << "try_tcpip" << std::endl;
-#endif
+    rc = make_fdpair_tcpip (r_, w_);
 
+    if (rc == 0 && try_ipc_first) {
+        // ipc didn't work but tcp/ip did; skip ipc in the future
+        try_ipc_first = false;
+    }
+    return rc;
+#endif  // ZMQ_HAVE_IPC
     return make_fdpair_tcpip (r_, w_);
 #elif defined ZMQ_HAVE_OPENVMS
 
